@@ -34,6 +34,34 @@ app.get('/allprojects', (req: Request, res: Response) => {
 	}
 });
 
+// Get project by id
+app.get('/getproject/:id', (req: Request, res: Response) => {
+	const projectId = req.params.id.toString();
+
+	const selectProjectsQuery = `
+        SELECT * FROM projects 
+        WHERE id = @id;
+    `;
+
+	try {
+		const project = db.query(selectProjectsQuery, { id: projectId });
+
+		res.status(200).json({
+			message: 'Projects retrieved successfully.',
+			data: project,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to retrieve projects',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
 // Delete specific project by id
 app.delete('/deleteproject/:id', (req: Request, res: Response) => {
 	const projectId = req.params.id.toString();
@@ -133,7 +161,7 @@ app.post('/createproject', (req: Request, res: Response) => {
 
 // Update project name or description by id
 app.patch('/updateproject/:id', (req: Request, res: Response) => {
-	const projectId = req.params.id;
+	const projectId = req.params.id.toString();
 	const { name, description } = req.body;
 
 	const updates = [];
