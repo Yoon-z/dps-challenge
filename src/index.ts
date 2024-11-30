@@ -60,21 +60,63 @@ app.delete('/delete/:id', (req: Request, res: Response) => {
 	}
 });
 
+app.delete('/deletename/:name', (req: Request, res: Response) => {
+	const name = req.params.name;
+
+	const deleteProjectQuery = `
+        DELETE FROM projects 
+        WHERE name = @name;
+    `;
+
+	try {
+		db.run(deleteProjectQuery, { name: name });
+		res.status(200).json({
+			message: `Project with name:${name} deleted successfully.`,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to delete project',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
+interface CountResult {
+	total: number;
+}
+
 // Create new project
 app.post('/createproject', (req: Request, res: Response) => {
 	const { name, description } = req.body;
 
-	const insertProjectQuery = `
-        INSERT INTO projects (name, description) 
-        VALUES (@name, @description);
+	const countQuery = `
+        SELECT COUNT(*) AS total 
+        FROM projects;
     `;
 
 	try {
-		const result = db.run(insertProjectQuery, { name, description });
+		const countResult = db.query(countQuery) as CountResult[];
+		const totalCount = countResult[0]?.total;
+		const newId = (totalCount + 1).toString();
+
+		const insertProjectQuery = `
+            INSERT INTO projects (id, name, description) 
+            VALUES (@id, @name, @description);
+        `;
+
+		const result = db.run(insertProjectQuery, {
+			id: newId,
+			name,
+			description,
+		});
 
 		res.status(201).json({
 			message: 'Project created successfully.',
-			projectId: result.lastInsertRowid,
+			result,
 		});
 	} catch (error) {
 		console.error(error);
