@@ -208,6 +208,174 @@ app.patch('/updateproject/:id', (req: Request, res: Response) => {
 	}
 });
 
+// Get all reports
+app.get('/allreports', (req: Request, res: Response) => {
+	const selectReportsQuery = `
+        SELECT * FROM reports;
+    `;
+
+	try {
+		const reports = db.query(selectReportsQuery);
+
+		res.status(200).json({
+			message: 'Reports retrieved successfully.',
+			data: reports,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to retrieve reports',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
+// Get report by id
+app.get('/getreport/:id', (req: Request, res: Response) => {
+	const reportId = req.params.id.toString();
+
+	const selectReportsQuery = `
+        SELECT * FROM reports 
+        WHERE id = @id;
+    `;
+
+	try {
+		const report = db.query(selectReportsQuery, { id: reportId });
+
+		res.status(200).json({
+			message: 'Reports retrieved successfully.',
+			data: report,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to retrieve reports',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
+// Delete specific report by id
+app.delete('/deletereport/:id', (req: Request, res: Response) => {
+	const reportId = req.params.id.toString();
+
+	const deleteReportQuery = `
+        DELETE FROM reports 
+        WHERE id = @id;
+    `;
+
+	try {
+		db.run(deleteReportQuery, { id: reportId });
+		res.status(200).json({
+			message: `report with id:${reportId} deleted successfully.`,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to delete report',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
+// Create new report
+app.post('/createreport', (req: Request, res: Response) => {
+	const { text, projectId } = req.body;
+
+	const countQuery = `
+        SELECT COUNT(*) AS total 
+        FROM reports;
+    `;
+
+	try {
+		const countResult = db.query(countQuery) as CountResult[];
+		const totalCount = countResult[0]?.total;
+		const newId = (totalCount + 1).toString();
+
+		const insertProjectQuery = `
+            INSERT INTO reports (id, text, projectId) 
+            VALUES (@id, @text, @projectId);
+        `;
+
+		const result = db.run(insertProjectQuery, {
+			id: newId,
+			text,
+			projectId,
+		});
+
+		res.status(201).json({
+			message: 'Report created successfully.',
+			result,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to create report',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
+// Update report text by id
+app.patch('/updatereport/:id', (req: Request, res: Response) => {
+	const reportId = req.params.id.toString();
+	const { text, projectId } = req.body;
+
+	const updates = [];
+	if (text) updates.push(`text = @text`);
+	if (projectId) updates.push(`projectId = @projectId`);
+
+	if (updates.length === 0) {
+		return res.status(400).json({
+			message: 'No valid fields provided to update.',
+		});
+	}
+	const updateQuery = `
+        UPDATE reports 
+        SET ${updates.join(', ')} 
+        WHERE id = @id;
+    `;
+
+	try {
+		const result = db.run(updateQuery, {
+			id: reportId,
+			text,
+			projectId,
+		});
+
+		if (result.changes === 0) {
+			return res.status(404).json({
+				message: `Report with id:${reportId} not found.`,
+			});
+		}
+
+		res.status(200).json({
+			message: `Report with id:${reportId} updated successfully.`,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to update report',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
 app.listen(port, () => {
 	console.log(`[server]: Server is running at http://localhost:${port}`);
 });
