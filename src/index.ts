@@ -73,8 +73,22 @@ app.delete('/deleteproject/:id', (req: Request, res: Response) => {
 
 	try {
 		db.run(deleteProjectQuery, { id: projectId });
+
+		const reorderIdsQuery = `
+            UPDATE projects
+            SET id = (
+                SELECT row_number FROM (
+                    SELECT ROW_NUMBER() OVER (ORDER BY id) AS row_number, id
+                    FROM projects
+                ) AS subquery
+                WHERE projects.id = subquery.id
+            )
+        `;
+
+		db.run(reorderIdsQuery);
+
 		res.status(200).json({
-			message: `Project with id:${projectId} deleted successfully.`,
+			message: `Project with id:${projectId} deleted successfully and IDs reordered.`,
 		});
 	} catch (error) {
 		console.error(error);
@@ -270,10 +284,22 @@ app.delete('/deletereport/:id', (req: Request, res: Response) => {
         WHERE id = @id;
     `;
 
+	const reorderIdsQuery = `
+            UPDATE reports
+            SET id = (
+                SELECT row_number FROM (
+                    SELECT ROW_NUMBER() OVER (ORDER BY id) AS row_number, id
+                    FROM reports
+                ) AS subquery
+                WHERE reports.id = subquery.id
+            )
+        `;
+
 	try {
 		db.run(deleteReportQuery, { id: reportId });
+		db.run(reorderIdsQuery);
 		res.status(200).json({
-			message: `report with id:${reportId} deleted successfully.`,
+			message: `report with id:${reportId} deleted successfully and id is reordered.`,
 		});
 	} catch (error) {
 		console.error(error);
