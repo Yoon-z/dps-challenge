@@ -1,7 +1,10 @@
 import db from './services/db.service';
-import { Request, Response, Router } from 'express';
+import express, { Express, Request, Response, Router } from 'express';
 
 const router = Router();
+const app: Express = express();
+
+app.use(express.json());
 
 // Get all projects
 router.get('/allprojects', async (req: Request, res: Response) => {
@@ -96,35 +99,6 @@ router.delete('/deleteproject/:id', async (req: Request, res: Response) => {
 	}
 });
 
-//only for test
-router.delete(
-	'/deleteprojectname/:name',
-	async (req: Request, res: Response) => {
-		const name = req.params.name;
-
-		const deleteProjectQuery = `
-        DELETE FROM projects 
-        WHERE name = @name;
-    `;
-
-		try {
-			await db.run(deleteProjectQuery, { name: name });
-			res.status(200).json({
-				message: `Project with name:${name} deleted successfully.`,
-			});
-		} catch (error) {
-			console.error(error);
-			res.status(500).json({
-				message: 'Failed to delete project',
-				error:
-					error instanceof Error
-						? error.message
-						: 'An unknown error occurred',
-			});
-		}
-	},
-);
-
 interface CountResult {
 	total: number;
 }
@@ -142,6 +116,10 @@ router.post('/createproject', async (req: Request, res: Response) => {
 		const countResult = (await db.query(countQuery)) as CountResult[];
 		const totalCount = countResult[0]?.total;
 		const newId = (totalCount + 1).toString();
+
+		if (!newId) {
+			throw new Error('Id cannot be null or undefined');
+		}
 
 		const insertProjectQuery = `
             INSERT INTO projects (id, name, description) 
@@ -324,6 +302,10 @@ router.post('/createreport', async (req: Request, res: Response) => {
 		const totalCount = countResult[0]?.total;
 		const newId = (totalCount + 1).toString();
 
+		if (!newId || !projectId) {
+			throw new Error('Id and project id cannot be null or undefined');
+		}
+
 		const insertProjectQuery = `
             INSERT INTO reports (id, text, projectId) 
             VALUES (@id, @text, @projectId);
@@ -354,11 +336,10 @@ router.post('/createreport', async (req: Request, res: Response) => {
 // Update report text by id
 router.patch('/updatereport/:id', async (req: Request, res: Response) => {
 	const reportId = req.params.id.toString();
-	const { text, projectId } = req.body;
+	const { text } = req.body;
 
 	const updates = [];
 	if (text) updates.push(`text = @text`);
-	if (projectId) updates.push(`projectId = @projectId`);
 
 	if (updates.length === 0) {
 		return res.status(400).json({
@@ -375,7 +356,6 @@ router.patch('/updatereport/:id', async (req: Request, res: Response) => {
 		const result = await db.run(updateQuery, {
 			id: reportId,
 			text,
-			projectId,
 		});
 
 		if (result.changes === 0) {
