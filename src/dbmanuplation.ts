@@ -399,4 +399,34 @@ router.patch('/updatereport/:id', async (req: Request, res: Response) => {
 	}
 });
 
+// Get report by project id
+router.get('/getreportbyp/:id', async (req: Request, res: Response) => {
+	const projectId = req.params.id.toString();
+
+	const selectReportsQuery = `
+        SELECT * FROM reports 
+        WHERE projectId = @projectId;
+    `;
+
+	try {
+		const report = await db.query(selectReportsQuery, {
+			projectId: projectId,
+		});
+
+		res.status(200).json({
+			message: 'Reports retrieved successfully.',
+			data: report,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to retrieve reports',
+			error:
+				error instanceof Error
+					? error.message
+					: 'An unknown error occurred',
+		});
+	}
+});
+
 export default router;
