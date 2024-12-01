@@ -297,7 +297,25 @@ router.post('/createreport', async (req: Request, res: Response) => {
         FROM reports;
     `;
 
+	const insertProjectQuery = `
+	INSERT INTO reports (id, text, projectId) 
+	VALUES (@id, @text, @projectId);
+    `;
+
+	const selectProjectsQuery = `
+	SELECT * FROM projects
+	WHERE id = @id;
+	`;
+
 	try {
+		const selectResult = await db.query(selectProjectsQuery, {
+			id: projectId,
+		});
+		if (selectResult.length === 0) {
+			return res.status(400).json({
+				message: "Project doesn't exists",
+			});
+		}
 		const countResult = (await db.query(countQuery)) as CountResult[];
 		const totalCount = countResult[0]?.total;
 		const newId = (totalCount + 1).toString();
@@ -305,11 +323,6 @@ router.post('/createreport', async (req: Request, res: Response) => {
 		if (!newId || !projectId) {
 			throw new Error('Id and project id cannot be null or undefined');
 		}
-
-		const insertProjectQuery = `
-            INSERT INTO reports (id, text, projectId) 
-            VALUES (@id, @text, @projectId);
-        `;
 
 		const result = await db.run(insertProjectQuery, {
 			id: newId,
